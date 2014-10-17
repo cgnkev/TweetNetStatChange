@@ -1,6 +1,6 @@
 <html>
   <head>
-    <title>PCI VPN Check</title>
+    <title>Network Check</title>
   </head>
   <body>
 <?php 
@@ -29,7 +29,7 @@
 
   // Restore the last saved state of the VPN servers
   $last_net_state = json_decode(file_get_contents($appConfig->app->state_filename), true);
-  $net_state_was_null = is_null($last_net_state);
+  $net_state_existed = !is_null($last_net_state);
 
   // Original twitter code from:
   // https://github.com/vickythegme/cron-job-twitter/blob/master/cron.php
@@ -60,6 +60,8 @@
     else {
       $status = "DOWN";
     }
+
+    // Example: "Google is UP."
     $message = $server->name . " is " . $status . ".";
     echo '<br />' . $message;
 
@@ -69,17 +71,19 @@
       $any_server_change = TRUE;
       $last_net_state[$server->name] = $status;
 
-      // We omit the tweet if there was no prior state file
-      if (!$net_state_was_null) {
+      // We tweet only if there was a prior state file
+      if ($net_state_existed) {
 
         // Tweet new server status      
         $result = $connection->post('statuses/update', array('status' => $message ));
         if ($result and $result->id) {
           // Tweet was posted successfully, and $result contains the tweet data
+          // Example: "Google is UP." Tweeted by @mytwitter
           $tweet_result_text = '"' . $result->text . '" Tweeted by @' . $result->user->screen_name;
         } 
         else {
           // Tweet failed
+          // Example: "Google is UP." Tweet failed. Reason: "Failed to authenticate (code 216)."
           $tweet_result_text = '"' . $message . '" Tweet failed. Reason: "' . 
                                $result->errors[0]->message . 
                                '" (code '. strval($result->errors[0]->code) . ').';
@@ -87,10 +91,13 @@
       }
       else {
         // Tweet was omitted because the state file could not be read
+        // Example: Google is UP. Tweet was not sent because the prior state was not present.
         $tweet_result_text = $message . ' Tweet was not sent because the prior state was not present.';
       }
     }
     else {
+        // There was no change to this server
+        // Example: Google is UP.
         $tweet_result_text = $message;
     }
 
@@ -103,7 +110,7 @@
   // If we don't care about that, we can put it under the $any_server_change conditional block.
   if (true) {
     $result = file_put_contents($appConfig->app->state_filename, json_encode($last_net_state));
-    if ($net_state_was_null) {
+    if (!$net_state_existed) {
       $email_body .= '<br />State initialized.';
     }
   }
