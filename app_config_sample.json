@@ -1,0 +1,40 @@
+{
+  "app": {
+    "state_filename": "last_net_state.json"
+  },
+  "servers": [
+    {"name": "Google", "host": "google.com"},
+    {"name": "Yahoo",  "host": "yahoo.com"}
+  ],
+  "tweet": {
+    "consumerKey"    : "1K91UATk5I7khWha5rfpR1Ylx",
+    "consumerSecret" : "98o98J4C970RqCNLdCb12dT4M3JO09d52o77z7759jvAb32A4a",
+    "accessToken"    : "QuIRmfRzmv-VniVy1AQ3NCFiTdqJmsKU4REXsGrzs4REtPcUfE",
+    "accessSecret"   : "iD1RBU11tKA4mvi649Ufk3j4x5I1ZN1zr45yn7MCh81pj"
+  },
+  "smtp": {
+    "Host": "smtp.myemailprovider.com",
+    "Username": "netdev@myorganization.com",
+    "Password": "iikTV2q4LRYzD",
+    "SMTPDebug": 0,
+    "SMTPAuth": true,
+    "SMTPSecure": "ssl",
+    "Port": 465,
+    "From":    {"email": "netdev@myorganization.com", "name": "Server Monitor"},
+    "ReplyTo": {"email": "netdev@myorganization.com", "name": "Server Monitor"},
+    "WordWrap": 50,
+    "isHTML": true,
+    "CharSet": "UTF-8",
+    "Subject": "Server network status change(s)",
+    "Preamble": "This is an automatically generated message to inform you that the following network connectivity changes were detected:<br />",
+    "To": [
+      {"email": "serversupport@myorganization.com", "name": "IT Manager"}
+    ],
+    "CC": [
+    ],
+    "BCC": [
+      {"email": "user1@myorganization.com", "name": "Ruth Jones"},
+      {"email": "cio@myorganization.com", "name": "Matt Manager"}
+    ]
+  }
+}
