@@ -32,6 +32,7 @@
   $net_state_existed = !is_null($last_net_state);
   $send_email = false;
   $email_body = $appConfig->smtp->Preamble;
+  $email_body .= "<br />Message generated " . date(DATE_RFC2822);
 
   // Original twitter code from:
   // https://github.com/vickythegme/cron-job-twitter/blob/master/cron.php
