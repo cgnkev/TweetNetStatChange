@@ -30,6 +30,8 @@
   // Restore the last saved state of the VPN servers
   $last_net_state = json_decode(file_get_contents($appConfig->app->state_filename), true);
   $net_state_existed = !is_null($last_net_state);
+  $send_email = false;
+  $email_body = $appConfig->smtp->Preamble;
 
   // Original twitter code from:
   // https://github.com/vickythegme/cron-job-twitter/blob/master/cron.php
@@ -45,79 +47,108 @@
                                  $appConfig->tweet->accessToken,
                                  $appConfig->tweet->accessSecret);
 
-  // Check each server to see if its up/down state has changed
-  $any_server_change = FALSE;
-  $email_body = $appConfig->smtp->Preamble;
-  foreach ($appConfig->servers as &$server) {
-
+  // Check each control server to see if it is up. If the control servers are "down,"
+  // it's an indication the problem is on our end and not on the servers being 
+  // monitored
+  $any_control_server_up = false;
+  foreach ($appConfig->control_servers as &$server) {
     // Check the server
-    $server_up = ping($server->host);
-
-    // Construct a user message from the state
-    if ($server_up) {
-      $status = "UP";
+    $any_control_server_up = ping($server->host);
+    if ($any_control_server_up) {
+      echo "<br />Server " . $server->name . " (" . $server->host . ") was pinged.";
+      break;
     }
     else {
-      $status = "DOWN";
+      echo "<br />Server " . $server->name . " (" . $server->host . ") could not be pinged.";
     }
+  }
 
-    // Example: "Google is UP."
-    $message = $server->name . " is " . $status . ".";
-    echo '<br />' . $message;
+  if ($any_control_server_up) {
 
-    // Did the state of this server change?
-    if ($status != $last_net_state[$server->name]) {
-      // Status for this server changed
-      $any_server_change = TRUE;
-      $last_net_state[$server->name] = $status;
+    // Check each monitored server to see if its up/down state has changed
+    $any_server_change = FALSE;
+    foreach ($appConfig->monitored_servers as &$server) {
 
-      // We tweet only if there was a prior state file
-      if ($net_state_existed) {
+      // Check the server
+      $server_up = ping($server->host);
 
-        // Tweet new server status      
-        $result = $connection->post('statuses/update', array('status' => $message ));
-        if ($result and $result->id) {
-          // Tweet was posted successfully, and $result contains the tweet data
-          // Example: "Google is UP." Tweeted by @mytwitter
-          $tweet_result_text = '"' . $result->text . '" Tweeted by @' . $result->user->screen_name;
-        } 
+      // Construct a user message from the state
+      if ($server_up) {
+        $status = "UP";
+      }
+      else {
+        $status = "DOWN";
+      }
+
+      // Example: "Google is UP."
+      $message = $server->name . " is " . $status . ".";
+      echo '<br />' . $message;
+
+      // Did the state of this server change?
+      if ($status != $last_net_state[$server->name]) {
+        // Status for this server changed
+        $any_server_change = TRUE;
+        $last_net_state[$server->name] = $status;
+
+        // We tweet only if there was a prior state file
+        if ($net_state_existed) {
+
+          // Tweet new server status      
+          $result = $connection->post('statuses/update', array('status' => $message ));
+          if ($result and $result->id) {
+            // Tweet was posted successfully, and $result contains the tweet data
+            // Example: "Google is UP." Tweeted by @mytwitter
+            $tweet_result_text = '"' . $result->text . '" Tweeted by @' . $result->user->screen_name;
+          }
+          else {
+            // Tweet failed
+            // Example: "Google is UP." Tweet failed. Reason: "Failed to authenticate (code 216)."
+            $tweet_result_text = '"' . $message . '" Tweet failed. Reason: "' . 
+                                 $result->errors[0]->message . 
+                                 '" (code '. strval($result->errors[0]->code) . ').';
+          }
+        }
         else {
-          // Tweet failed
-          // Example: "Google is UP." Tweet failed. Reason: "Failed to authenticate (code 216)."
-          $tweet_result_text = '"' . $message . '" Tweet failed. Reason: "' . 
-                               $result->errors[0]->message . 
-                               '" (code '. strval($result->errors[0]->code) . ').';
+          // Tweet was omitted because the state file could not be read
+          // Example: Google is UP. Tweet was not sent because the prior state was not present.
+          $tweet_result_text = $message . ' Tweet was not sent because the prior state was not present.';
         }
       }
       else {
-        // Tweet was omitted because the state file could not be read
-        // Example: Google is UP. Tweet was not sent because the prior state was not present.
-        $tweet_result_text = $message . ' Tweet was not sent because the prior state was not present.';
-      }
-    }
-    else {
         // There was no change to this server
         // Example: Google is UP.
         $tweet_result_text = $message;
-    }
+      }
 
-    // Update email body
-    $email_body .= '<br />' . $tweet_result_text;
+      // Update email body
+      $email_body .= '<br /><br />' . $tweet_result_text;
+
+      // Save the new server state; the only reason we do this even if no change, is 
+      // to make it easy to check the web server to see when the last check took place.
+      // If we don't care about that, we can put it under the $any_server_change conditional block.
+      if (true) {
+        $result = file_put_contents($appConfig->app->state_filename, json_encode($last_net_state));
+        if (!$net_state_existed) {
+          $email_body .= '<br /><br />State initialized.';
+        }
+      }
+    }
   }
-
-  // Save the new server state; the only reason we do this even if no change, is 
-  // to make it easy to check the web server to see when the last check took place.
-  // If we don't care about that, we can put it under the $any_server_change conditional block.
-  if (true) {
-    $result = file_put_contents($appConfig->app->state_filename, json_encode($last_net_state));
-    if (!$net_state_existed) {
-      $email_body .= '<br />State initialized.';
-    }
+  else {
+    // No control servers were up. We don't tweet but we do want send an email that 
+    // we had an unsuccessful check.
+    $email_body .= '<br />Control servers could not be contacted.';
+    $send_email = true;
   }
 
   if ($any_server_change) {
     // The state of a server has changed, so send an email.
     // We no not omit the email if we had no prior state
+    $send_email = true;
+  }
+
+  if ($send_email) {
+    // Send an email
     // https://github.com/PHPMailer/PHPMailer
 
     echo '<br />Email contents:';

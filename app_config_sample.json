@@ -2,9 +2,13 @@
   "app": {
     "state_filename": "last_net_state.json"
   },
-  "servers": [
-    {"name": "Google", "host": "google.com"},
-    {"name": "Yahoo",  "host": "yahoo.com"}
+  "monitored_servers": [
+    {"name": "Mycompany file server",   "host": "server1.mycompany.com"},
+    {"name": "Mycompany secure server", "host": "server2.mycompany.com"}
+  ],
+  "control_servers": [
+    {"name": "Google",  "host": "google.com"},
+    {"name": "Yahoo",   "host": "yahoo.com"}
   ],
   "tweet": {
     "consumerKey"    : "1K91UATk5I7khWha5rfpR1Ylx",
@@ -14,27 +18,27 @@
   },
   "smtp": {
     "Host": "smtp.myemailprovider.com",
-    "Username": "netdev@myorganization.com",
+    "Username": "netdev@mycompany.com",
     "Password": "iikTV2q4LRYzD",
     "SMTPDebug": 0,
     "SMTPAuth": true,
     "SMTPSecure": "ssl",
     "Port": 465,
-    "From":    {"email": "netdev@myorganization.com", "name": "Server Monitor"},
-    "ReplyTo": {"email": "netdev@myorganization.com", "name": "Server Monitor"},
+    "From":    {"email": "netdev@mycompany.com", "name": "Server Monitor"},
+    "ReplyTo": {"email": "netdev@mycompany.com", "name": "Server Monitor"},
     "WordWrap": 50,
     "isHTML": true,
     "CharSet": "UTF-8",
     "Subject": "Server network status change(s)",
     "Preamble": "This is an automatically generated message to inform you that the following network connectivity changes were detected:<br />",
     "To": [
-      {"email": "serversupport@myorganization.com", "name": "IT Manager"}
+      {"email": "serversupport@mycompany.com", "name": "IT Manager"}
     ],
     "CC": [
     ],
     "BCC": [
-      {"email": "user1@myorganization.com", "name": "Ruth Jones"},
-      {"email": "cio@myorganization.com", "name": "Matt Manager"}
+      {"email": "user1@mycompany.com", "name": "Ruth Jones"},
+      {"email": "cio@mycompany.com", "name": "Matt Manager"}
     ]
   }
 }
