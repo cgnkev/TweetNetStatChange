@@ -1,6 +1,8 @@
 {
   "app": {
-    "state_filename": "last_net_state.json"
+    "state_filename" : "last_net_state.json",
+    "log_filename"   : "./net_stat_events_log.txt",
+    "tweet_suffix"   : "Latest status: http://www.mycompany.com/tweetvpn"
   },
   "monitored_servers": [
     {"name": "Mycompany file server",   "host": "server1.mycompany.com"},
