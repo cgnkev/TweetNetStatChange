@@ -41,3 +41,10 @@ Icon
 Network Trash Folder
 Temporary Items
 .apdisk
+
+app_config.json
+error_log
+index.html
+last_net_state.json
+net_stat_events_log.txt
+time_test.php
