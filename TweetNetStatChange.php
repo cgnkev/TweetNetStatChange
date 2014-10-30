@@ -53,10 +53,13 @@
   require_once('twitteroauth.php');
 
   // Create a connection using my app's settings from dev.twitter.com
-  $connection = new TwitterOAuth($appConfig->tweet->consumerKey,
-                                 $appConfig->tweet->consumerSecret,
-                                 $appConfig->tweet->accessToken,
-                                 $appConfig->tweet->accessSecret);
+  $connection = NULL;
+  if ($appConfig->tweet->enabled) {
+    $connection = new TwitterOAuth($appConfig->tweet->consumerKey,
+                                   $appConfig->tweet->consumerSecret,
+                                   $appConfig->tweet->accessToken,
+                                   $appConfig->tweet->accessSecret);
+  }
 
   // Check each control server to see if it is up. If the control servers are "down,"
   // it's an indication the problem is on our end and not on the servers being 
@@ -104,18 +107,26 @@
           // Tweet new server status
           // Example: "Google is UP. Latest status: http://www.mywebserver.com/tweetnetstat"
           $tweet = $message . " " . $appConfig->app->tweet_suffix;
-          $result = $connection->post('statuses/update', array('status' => $tweet));
-          if ($result and $result->id) {
-            // Tweet was posted successfully, and $result contains the tweet data
-            // Example: "Google is UP. Latest status: http://www.mywebserver.com/tweetnetstat" Tweeted by @mytwitter
-            $tweet_result_text = '"' . $result->text . '" Tweeted by @' . $result->user->screen_name;
+
+          if ($appConfig->tweet->enabled) {
+            # Tweet the message
+            $result = $connection->post('statuses/update', array('status' => $tweet));
+            if ($result and $result->id) {
+              // Tweet was posted successfully, and $result contains the tweet data
+              // Example: "Google is UP. Latest status: http://www.mywebserver.com/tweetnetstat" Tweeted by @mytwitter
+              $tweet_result_text = '"' . $result->text . '" Tweeted by @' . $result->user->screen_name;
+            }
+            else {
+              // Tweet failed
+              // Example: "Google is UP. Status page: http://www.mywebserver.com/tweetnetstat" Tweet failed. Reason: "Failed to authenticate (code 216)."
+              $tweet_result_text = '"' . $tweet . '" Tweet failed. Reason: "' . 
+                                   $result->errors[0]->message . 
+                                   '" (code '. strval($result->errors[0]->code) . ').';
+            }
           }
           else {
-            // Tweet failed
-            // Example: "Google is UP. Status page: http://www.mywebserver.com/tweetnetstat" Tweet failed. Reason: "Failed to authenticate (code 216)."
-            $tweet_result_text = '"' . $tweet . '" Tweet failed. Reason: "' . 
-                                 $result->errors[0]->message . 
-                                 '" (code '. strval($result->errors[0]->code) . ').';
+            // Tweet was disabled
+            $tweet_result_text = $message . ' Tweeting disabled in the config.';
           }
         }
         else {

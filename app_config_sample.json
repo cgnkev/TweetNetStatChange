@@ -13,6 +13,7 @@
     {"name": "Yahoo",   "host": "yahoo.com"}
   ],
   "tweet": {
+    "enabled"        : false,
     "consumerKey"    : "1K91UATk5I7khWha5rfpR1Ylx",
     "consumerSecret" : "98o98J4C970RqCNLdCb12dT4M3JO09d52o77z7759jvAb32A4a",
     "accessToken"    : "QuIRmfRzmv-VniVy1AQ3NCFiTdqJmsKU4REXsGrzs4REtPcUfE",
