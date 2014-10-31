@@ -2,7 +2,15 @@
   "app": {
     "state_filename" : "last_net_state.json",
     "log_filename"   : "./net_stat_events_log.txt",
-    "tweet_suffix"   : "Latest status: http://www.mycompany.com/tweetvpn"
+    "state_change_log_filename" : "./net_changes.txt",
+    "tweet_suffix"   : "Latest status: http://www.mycompany.com/tweetvpn",
+    "follow_plug"    : "<br />Follow <a href=\"https://twitter.com/mytwitter/\" target=\"_blank\">My Name (@mytwitter) on Twitter</a> for instant notification of networking events.",
+    "socket_timeout"  : 3.0,
+    "socket_retry_count"  : 3
+  },
+  "notification": {
+    "email"        : true,
+    "tweet"        : true
   },
   "monitored_servers": [
     {"name": "Mycompany file server",   "host": "server1.mycompany.com"},
@@ -13,7 +21,6 @@
     {"name": "Yahoo",   "host": "yahoo.com"}
   ],
   "tweet": {
-    "enabled"        : false,
     "consumerKey"    : "1K91UATk5I7khWha5rfpR1Ylx",
     "consumerSecret" : "98o98J4C970RqCNLdCb12dT4M3JO09d52o77z7759jvAb32A4a",
     "accessToken"    : "QuIRmfRzmv-VniVy1AQ3NCFiTdqJmsKU4REXsGrzs4REtPcUfE",

@@ -5,27 +5,53 @@
   <body>
 <?php 
 
-  // From:
+  // Adapted from:
   // http://www.thecave.info/php-ping-script-to-check-remote-server-or-website/
-  function ping($host,$port=80,$timeout=6)
+  function ping($host, $port=80)
   {
-    $fsock = fsockopen($host, $port, $errno, $errstr, $timeout);
-    if ( ! $fsock )
+    global $appConfig;
+
+    $retry_count = $appConfig->app->socket_retry_count;
+    $timeout = $appConfig->app->socket_timeout;
+
+    for ($i = 0; $i < $retry_count; $i++) 
     {
-      return FALSE;
+      $fsock = fsockopen($host, $port, $errno, $errstr, $timeout);
+      if ($fsock ) 
+      {
+          fclose($fsock);
+          return TRUE;
+      }
     }
-    else
-    {
-      fclose($fsock);
-      return TRUE;
-    }
+    return FALSE;
   }
 
-  function my_log($message) {
+  // Return the most recent network status changes, from the log
+  function get_latest_changes()
+  {
+    $log_lines = `tail -16 ./net_changes.txt`;
+    $lines = preg_split ('/$\R?^/m', $log_lines);
+
+    $text = "";
+    $text .= "<br />Latest network changes:";
+    $text .=  "<pre>";
+
+    foreach($lines as $line) {
+      $text .= "<br />" . $line;
+    }
+    $text .= "<br /></pre>";
+
+    return $text;
+  }
+
+  function my_log($message, $is_state_change) {
     // Function to write a line to the program log
-    // Example: 2014-10-24 21:14:01: Google (google.com) DOWN => UP
-    global $log_file;
-    error_log(PHP_EOL . date("Y-m-d G:i:s") . ": " . $message, 3, $log_file);
+    // Example: 2014-10-24 21:14:01: Google (google.com) UP
+    global $log_file, $state_change_file;
+    error_log(PHP_EOL . date("Y-m-d H:i:s") . ": " . $message, 3, $log_file);
+    if ($is_state_change) {
+      error_log(PHP_EOL . date("Y-m-d H:i:s") . ": " . $message, 3, $state_change_file);
+    }
   }
 
   // Change to the directory of my script -- this makes sure my imports
@@ -44,6 +70,7 @@
   $send_email = false;
   $email_body = $appConfig->smtp->Preamble;
   $log_file = $appConfig->app->log_filename;
+  $state_change_file = $appConfig->app->state_change_log_filename;
   // Original twitter code from:
   // https://github.com/vickythegme/cron-job-twitter/blob/master/cron.php
   // Adapted by Vic Levy in October 2014
@@ -54,7 +81,7 @@
 
   // Create a connection using my app's settings from dev.twitter.com
   $connection = NULL;
-  if ($appConfig->tweet->enabled) {
+  if ($appConfig->notification->tweet) {
     $connection = new TwitterOAuth($appConfig->tweet->consumerKey,
                                    $appConfig->tweet->consumerSecret,
                                    $appConfig->tweet->accessToken,
@@ -95,9 +122,8 @@
       // Did the state of this server change?
       if ($status != $last_net_state[$server->name]) {
         // Status for this server changed
-        // Example: Google (google.com) DOWN => UP
-        my_log($server->name . " (" . $server->host . ") " 
-             . $last_net_state[$server->name] . " => " . $status);
+        // Example: Google (google.com) UP
+        my_log($server->name . " (" . $server->host . ") " . $status, TRUE);
         $any_server_change = TRUE;
         $last_net_state[$server->name] = $status;
 
@@ -108,7 +134,7 @@
           // Example: "Google is UP. Latest status: http://www.mywebserver.com/tweetnetstat"
           $tweet = $message . " " . $appConfig->app->tweet_suffix;
 
-          if ($appConfig->tweet->enabled) {
+          if ($appConfig->notification->tweet) {
             # Tweet the message
             $result = $connection->post('statuses/update', array('status' => $tweet));
             if ($result and $result->id) {
@@ -136,7 +162,7 @@
         }
 
         // Log what happened
-        my_log($tweet_result_text);
+        my_log($tweet_result_text, FALSE);
       }
       else {
         // There was no change to this server
@@ -146,7 +172,6 @@
 
       // Update email body
       $email_body .= '<br /><br />' . $tweet_result_text;
-
     }
     // Save the new server state; the only reason we do this even if no change, is 
     // to make it easy to check the web server to see when the last check took place.
@@ -165,18 +190,21 @@
     $send_email = true;
   }
 
-  if ($any_server_change) {
+  // Emailing can be turned off in the configuration
+  if ($appConfig->notification->email && $any_server_change) {
     // The state of a server has changed, so send an email.
-    // We no not omit the email if we had no prior state
     $send_email = true;
   }
+
+  // Append the latest changes to the email
+  $changes = get_latest_changes();
+  $email_body .= $changes;
+  $email_body .= "<br />" . $appConfig->app->tweet_suffix;
+  $email_body .= "<br />" . $appConfig->app->follow_plug;
 
   if ($send_email) {
     // Send an email
     // https://github.com/PHPMailer/PHPMailer
-
-    echo '<br />Email contents:';
-    echo '<br /><br />' . $email_body;
 
     require_once('./php_mailer/PHPMailerAutoload.php');
     $mail = new PHPMailer();
@@ -214,11 +242,11 @@
     if(!$mail->send()) {
       echo '<br />Message could not be emailed.';
       echo '<br />Mailer Error: ' . $mail->ErrorInfo;
-      my_log("Mailer Error: " . $mail->ErrorInfo);
+      my_log("Mailer Error: " . $mail->ErrorInfo, FALSE);
     } 
     else {
       echo '<br />Message has been emailed.';
-      my_log("Message has been emailed.");
+      my_log("Message has been emailed.", FALSE);
     }
 
   }
@@ -226,6 +254,9 @@
     echo '<br />No change. Email was not sent.';
   }
 
+  // Echo the latest changes to the browser
+  echo $changes;
+  echo $appConfig->app->follow_plug;
 ?> 
  </body>
 </html>

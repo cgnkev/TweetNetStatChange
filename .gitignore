@@ -48,3 +48,6 @@ index.html
 last_net_state.json
 net_stat_events_log.txt
 time_test.php
+log_test.php
+net_changes.txt
+TweetNetStatChange_test.php
