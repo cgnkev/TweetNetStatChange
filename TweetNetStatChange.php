@@ -7,13 +7,8 @@
 
   // Adapted from:
   // http://www.thecave.info/php-ping-script-to-check-remote-server-or-website/
-  function ping($host, $port=80)
+  function ping($host, $timeout, $retry_count, $port=80)
   {
-    global $appConfig;
-
-    $retry_count = $appConfig->app->socket_retry_count;
-    $timeout = $appConfig->app->socket_timeout;
-
     for ($i = 0; $i < $retry_count; $i++) 
     {
       $fsock = fsockopen($host, $port, $errno, $errstr, $timeout);
@@ -54,6 +49,7 @@
     }
   }
 
+
   // Change to the directory of my script -- this makes sure my imports
   // and json files are accessed correctly.
   chdir(dirname(__FILE__));
@@ -62,7 +58,9 @@
   $timestamp = date("D g:i A");
 
   // Read in the app config and servers to check
-  $appConfig = json_decode(file_get_contents("app_config.json"));
+  $appConfig   = json_decode(file_get_contents("app_config.json"));
+  $timeout     = $appConfig->app->socket_timeout;
+  $retry_count = $appConfig->app->socket_retry_count;
 
   // Restore the last saved state of the VPN servers
   $last_net_state = json_decode(file_get_contents($appConfig->app->state_filename), true);
@@ -91,10 +89,12 @@
   // Check each control server to see if it is up. If the control servers are "down,"
   // it's an indication the problem is on our end and not on the servers being 
   // monitored
+  echo "Timeout: ".strval($appConfig->app->socket_timeout)."s, retries: ".strval($appConfig->app->socket_retry_count);
+
   $any_control_server_up = false;
   foreach ($appConfig->control_servers as &$server) {
     // Check the server
-    $any_control_server_up = ping($server->host);
+    $any_control_server_up = ping($server->host, $timeout, $retry_count);
     if ($any_control_server_up) {
       echo "<br />Server " . $server->name . " (" . $server->host . ") was pinged.";
       break;
@@ -111,7 +111,7 @@
     foreach ($appConfig->monitored_servers as &$server) {
 
       // Check the server
-      $server_up = ping($server->host);
+      $server_up = ping($server->host, $timeout, $retry_count);
 
       // Construct a user message from the state
       // Example: "Google is UP Fri 08:41 PM."
@@ -191,9 +191,15 @@
   }
 
   // Emailing can be turned off in the configuration
-  if ($appConfig->notification->email && $any_server_change) {
+  if ($any_server_change) {
     // The state of a server has changed, so send an email.
     $send_email = true;
+  }
+
+  // Emailing can be turned off in the configuration
+  if ($send_email and !$appConfig->notification->email) {
+    echo "<br />Emailing is disabled.";
+    $send_email = false;
   }
 
   // Append the latest changes to the email
@@ -251,7 +257,7 @@
 
   }
   else {
-    echo '<br />No change. Email was not sent.';
+    echo '<br />Email was not sent.';
   }
 
   // Echo the latest changes to the browser
